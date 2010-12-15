@@ -1,0 +1,22 @@
+MinerNotes.pl
+
+A perl script to parse targetless ore data files.
+
+Author:  Wonko
+Version:  Pre-Alpha
+
+
+Usage:
+
+Select a file to load, and click the 'Load data from targetless file' button, then be patient for ~20 seconds.
+
+
+Notes:
+
+The entry for selecting what file to load supports file links ("file://{some file}").
+You should be able to copy a file, and paste it to the entry!
+
+
+Coming soon(tm):
+
+I'm working on being able to merge targetless data together.  Shouldn't take me too much longer!

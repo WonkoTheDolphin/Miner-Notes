@@ -4,19 +4,29 @@ use strict;
 
 use Tk;
 use Tk::Font;
-use Tk::TextUndo;
 
 #Here's hoping this doesn't change from one person to the next!
-my $targetlessDataFile = 'system741937notes.txt';
-my $ScreenWidth = 950;
+my $targetlessDataFile = './system741937notes.txt';
+my $ScreenWidth = 950;  #Mad arbitrary.  This could use some thought...
 my $ScreenHeight = 760;
 
 #Widgets!
 my $MainWindow;
 my $font;
 
-#A Scrolled TextUndo for displaying data. Maybe I'll make this a pretty Scrolled Canvas some day...
+my $MenuFrame;
+my $DisplayFrame;
+my $OtherWidgetsFrame;
+
+#A Scrolled Text for displaying data. Maybe I'll make this a pretty Scrolled Canvas some day...
 my $RoidInfoDisplay;
+
+#A Listbox for selecting an ore type
+my $OreListbox;
+
+#An entry for choosing what file to load.
+my $DataFileEntry;
+
 
 #Buttons
 my $LoadTargetlessDataButton;
@@ -25,8 +35,6 @@ my $DisplayAllDataButton;
 my $SectorSortButton;
 my $OreSortButton;
 
-#A Listbox for selecting an ore type
-my $OreListbox;
 
 
 #Structure for the 'roid data,
@@ -91,37 +99,70 @@ my @SectorAlphas = ("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", 
 $MainWindow = new MainWindow(
   -width => $ScreenWidth,
   -height => $ScreenHeight);
+
 $font = $MainWindow->Font(
   -family => 'Courier',
   -size => 14);
 
 
-$LoadTargetlessDataButton = $MainWindow->Button(
-  -text => 'Load data from targetless file',
-  -command => \&LoadTargetlessData)
-    ->place(-y => 0, -x => 0);
+#Frames
 
-$OreListbox = $MainWindow->Listbox(
-  -height => 13,
-  -listvariable => "@OreTypes")
-    ->place(-y => 0, -x => 750);
+$MenuFrame = $MainWindow->Frame(
+  -width => "$ScreenWidth",
+  -height => 80)
+    ->pack(-anchor => 'nw', -side => 'top');
 
-$SectorSortButton = $MainWindow->Button(
-  -text => "Sort data by sector",
-  -command => \&SortBySectorID)
-    ->place(-y => 0, -x => 300);
+$DisplayFrame = $MainWindow->Frame(
+  -width => $ScreenWidth,
+  -height => $ScreenHeight - 40)
+    ->pack(-anchor => 'sw', -side => 'bottom');
 
-$OreSortButton = $MainWindow->Button(
-  -text => "Sort data by ore type",
-  -command => \&SortByOreType)
-    ->place(-y => 0, -x => 600);
+$OtherWidgetsFrame = $MainWindow->Frame(
+  -width => 100,
+  -height => $ScreenHeight)
+    ->pack(-anchor => 'e', -side => 'right');
 
-$RoidInfoDisplay = $MainWindow->Scrolled('TextUndo',
-  -width => 80,
+
+#Major widgets
+
+$RoidInfoDisplay = $DisplayFrame->Scrolled('Text',
+  -width => 100,
   -height => 20,
   -font => $font,
+  -background => 'white',
   -insertofftime => 0)
-    ->place(-y => 290, -x => 0);
+    ->pack();
+
+$OreListbox = $OtherWidgetsFrame->Listbox(
+  -height => 13,
+  -background => 'white',
+  -listvariable => "@OreTypes")
+    ->pack();
+
+$DataFileEntry = $MenuFrame->Entry(
+  -width => 80,
+  -text => $targetlessDataFile,
+  -font => $font,
+  -background => 'white')
+    ->pack(-anchor => 'nw');
+
+
+#Menu Buttons
+
+$LoadTargetlessDataButton = $MenuFrame->Button(
+  -text => 'Load data from targetless file',
+  -command => \&LoadTargetlessData)
+    ->pack(-anchor => 'nw', -side => 'left');
+
+$OreSortButton = $MenuFrame->Button(
+  -text => "Sort data by ore type",
+  -command => \&SortByOreType)
+    ->pack(-anchor => 'ne', -side => 'right');
+
+$SectorSortButton = $MenuFrame->Button(
+  -text => "Sort data by sector",
+  -command => \&SortBySectorID)
+    ->pack(-anchor => 'ne', -side => 'right');
 
 
 #=============================================================================
@@ -134,55 +175,56 @@ MainLoop();
 sub DisplayAllTargetlessData
 {
   #Build output data
-  my $newtext = "";
+  my $text = "";
 
-  my $rock;
-  my $currSectorID = 0;
+  my $Rock;
+  my $CurrSectorID = 0;
   my $OreType;
 
-  foreach $rock (@RoidList)
+  foreach $Rock (@RoidList)
   {
     #put a blank line between different sectors
-    if ($rock->{"SectorID"} ne $currSectorID)
+    if ($Rock->{"SectorID"} ne $CurrSectorID)
     {
-      $currSectorID = $rock->{"SectorID"};
-      $newtext .= "\n";
+      $CurrSectorID = $Rock->{"SectorID"};
+      $text .= "\n";
     }
     
-    $newtext .= $rock->{"SectorID"} . " (" . $rock->{"RockID"} . "):";
+    $text .= $Rock->{"SectorID"} . " (" . $Rock->{"RockID"} . "):";
     
     foreach $OreType (@OreTypes)
     {
-      if ($rock->{"$OreType"} > 0)
+      if ($Rock->{"$OreType"} > 0)
       {
-	$newtext .= " $OreType, " . $rock->{"$OreType"} . ";";
+	$text .= " $OreType, " . $Rock->{"$OreType"} . "%;";
       }
     }
 
     #Don't need the final ;
-    chop($newtext);
-    $newtext .= "\n";
+    chop($text);
+    $text .= "\n";
   }
-  $newtext =~ s/^\n//;
 
-  $RoidInfoDisplay->Contents($newtext);
+  #Get rid of a newline added at the begining.
+  $text =~ s/^\n//;
+
+  $RoidInfoDisplay->Contents($text);
 }
 
 #Display only data on the selected ore
 sub DisplayDataForSelectedOre
 {
   my $text = "";
-  my $rock;
-
   my $OreType = $OreTypes[$OreListbox->index('active')];
+  my $Rock;
 
   $text .= "$OreType:\n\n";
 
-  foreach $rock (@RoidList)
+  foreach $Rock (@RoidList)
   {
-    if ($rock->{"$OreType"} > 0)
+    if ($Rock->{"$OreType"} > 0)
     {
-      $text .= $rock->{"SectorID"} . " (" . $rock->{"RockID"} . "): " . $rock->{"$OreType"} . "%\n";
+      $text .= $Rock->{"SectorID"} . " (" . $Rock->{"RockID"} . "): " . $Rock->{"$OreType"} . "%\n";
     }
   }
 
@@ -193,6 +235,11 @@ sub DisplayDataForSelectedOre
 #Sorting subroutines
 sub SortByOreType
 {
+  @RoidList or return;
+
+  $RoidInfoDisplay->Contents("Working, please wait...");
+  $RoidInfoDisplay->idletasks();
+
   @RoidList = sort BySelectedOre @RoidList;
 
   DisplayDataForSelectedOre();
@@ -200,6 +247,11 @@ sub SortByOreType
 
 sub SortBySectorID
 {
+  @RoidList or return;
+
+  $RoidInfoDisplay->Contents("Working, please wait...");
+  $RoidInfoDisplay->idletasks();
+
   @RoidList = sort BySectorID @RoidList;
   
   DisplayAllTargetlessData();
@@ -218,18 +270,40 @@ sub BySectorID
 }
 
 
+#Loading and parsing subroutines
+
 #Loads the targetless data file, and parses it, populating @RoidList
 #then displays all data for all rocks.
 sub LoadTargetlessData
 {
-  $RoidInfoDisplay->Load('system741937notes.txt');
-  my $text = $RoidInfoDisplay->Contents();
-  my $newtext = "";
+  my $text = "";
+  my $filename = $DataFileEntry->get();
+
+  #Get rid of any file:// at the begining of the filename
+  $filename =~ s/^file:\/\///;
+
+  unless (open(TARGETLESSFILE, $filename))
+  {
+    $RoidInfoDisplay->Contents("Couldn't find file: $filename");
+    return;
+  }
+  $text = <TARGETLESSFILE>; #targetless doesn't use any line breaks
+  close TARGETLESSFILE;
   
   #insert line breaks.  I did this for my sanity and to make the data human readable.
   $text =~ s/\}\}(,|;)(\S)/\}\}$1\n$2/g;
   $text =~ s/\}\}"(,|;)(\S)/\}\}"$1\n\n$2/g;
   $text =~ s/="",(\S)/="",\n\n$1/g;
+
+  #Make sure this is a targetless data file.
+  unless ($text =~ /^\[\d+\]="\S/)
+  {
+    $RoidInfoDisplay->Contents("$filename\ndoes not appear to contain targetless data!");
+    return;
+  }
+
+  $RoidInfoDisplay->Contents("Massive amounts of asteroid data found!\n\nWorking, please wait...");
+  $RoidInfoDisplay->idletasks();
 
   #extract 'roid data
   my $RoidCount = 0;
@@ -241,10 +315,14 @@ sub LoadTargetlessData
 
   my $OreType;
 
+  #Clear any current data
+  @RoidList = [];
+
+  #As a sanity check, this won't really do anything unless the file contained data
+  #in the format it expected.
   while($text =~ s/\[(\d+)\]="(\S)/\[$1\]="\n$2/)
   {
     #New Sector ID found!
-    
     #Parse ID to readable system/sector name.
     $SectorID = $SystemList[$1 / 256] . " " . $SectorAlphas[(($1 % 256) % 16) - 1] . "-" . int((($1 % 256) / 16) + 1);
 
@@ -283,6 +361,7 @@ sub LoadTargetlessData
     if ($text =~ /^"/)
     {
       #this Sector ID had no rocks associated with it.
+      #Remove the empty line
       $text =~ s/\S*\n//;
     }
 
@@ -296,8 +375,15 @@ sub LoadTargetlessData
 #Left this in from when I was first writing things.
 sub LoadTargetlessDataRaw
 {
-  $RoidInfoDisplay->Load($targetlessDataFile);
-  my $text = $RoidInfoDisplay->Contents();
+  my $text = "";
+  my $filename = $DataFileEntry->get();
+
+  #Get rid of any file:// at the begining of the filename
+  $filename =~ s/^file:\/\///;
+
+  open(TARGETLESSFILE, $filename) or return;
+  $text = <TARGETLESSFILE>; #targetless doesn't use any line breaks
+  close TARGETLESSFILE;
 
   #insert line breaks for readability
   $text =~ s/\}\}(,|;)(\S)/\}\}$1\n$2/g;
