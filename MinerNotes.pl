@@ -302,9 +302,6 @@ sub LoadTargetlessData
     return;
   }
 
-  $RoidInfoDisplay->Contents("Massive amounts of asteroid data found!\n\nWorking, please wait...");
-  $RoidInfoDisplay->idletasks();
-
   #extract 'roid data
   my $RoidCount = 0;
   my %RockEntry;
@@ -320,11 +317,14 @@ sub LoadTargetlessData
 
   #As a sanity check, this won't really do anything unless the file contained data
   #in the format it expected.
-  while($text =~ s/\[(\d+)\]="(\S)/\[$1\]="\n$2/)
+  while($text =~ s/^\[(\d+)\]="(\S)/\[$1\]="\n$2/)
   {
     #New Sector ID found!
     #Parse ID to readable system/sector name.
     $SectorID = $SystemList[$1 / 256] . " " . $SectorAlphas[(($1 % 256) % 16) - 1] . "-" . int((($1 % 256) / 16) + 1);
+
+    $RoidInfoDisplay->Contents("Massive amounts of asteroid data found!  This may take a moment...\n\nProcessing sector $SectorID...");
+    $RoidInfoDisplay->idletasks();
 
     #Remove line with sector ID
     $text =~ s/\S*\n//;
