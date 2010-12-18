@@ -30,12 +30,14 @@ my $DataFileEntry;
 
 #Buttons
 my $LoadTargetlessDataButton;
-my $DisplayAllDataButton;
+my $MergeTargetlessDataButton;
 
 my $SectorSortButton;
 my $OreSortButton;
 
+my $GenerateNewFileButton;
 
+my $LoadRawDataButton;
 
 #Structure for the 'roid data,
 #A list of pointers to hashes.  ex: $RoidList[x]->{"SectorID"}
@@ -131,38 +133,52 @@ $RoidInfoDisplay = $DisplayFrame->Scrolled('Text',
   -font => $font,
   -background => 'white',
   -insertofftime => 0)
-    ->pack();
+    ->pack(-anchor => 'nw', -side => 'top');
 
 $OreListbox = $OtherWidgetsFrame->Listbox(
   -height => 13,
   -background => 'white',
   -listvariable => "@OreTypes")
-    ->pack();
+    ->pack(-anchor => 'ne', -side => 'right');
 
 $DataFileEntry = $MenuFrame->Entry(
   -width => 80,
   -text => $targetlessDataFile,
   -font => $font,
   -background => 'white')
-    ->pack(-anchor => 'nw');
+    ->pack(-anchor => 'nw', -side => 'top');
 
 
 #Menu Buttons
 
 $LoadTargetlessDataButton = $MenuFrame->Button(
-  -text => 'Load data from targetless file',
-  -command => \&LoadTargetlessData)
+  -text => "Load this file",
+  -command => [\&LoadTargetlessData, 0])
     ->pack(-anchor => 'nw', -side => 'left');
 
-$OreSortButton = $MenuFrame->Button(
-  -text => "Sort data by ore type",
-  -command => \&SortByOreType)
-    ->pack(-anchor => 'ne', -side => 'right');
+$MergeTargetlessDataButton = $MenuFrame->Button(
+  -text => "Merge this file with current data",
+  -command => [\&LoadTargetlessData, 1])
+    ->pack(-anchor => 'nw', -side => 'left');
 
-$SectorSortButton = $MenuFrame->Button(
-  -text => "Sort data by sector",
-  -command => \&SortBySectorID)
-    ->pack(-anchor => 'ne', -side => 'right');
+$OreSortButton = $OtherWidgetsFrame->Button(
+  -text => "Display data by ore type",
+  -command => \&DisplayByOreType)
+    ->pack(-anchor => 'se', -side => 'bottom');
+
+$SectorSortButton = $OtherWidgetsFrame->Button(
+  -text => "Display data by sector",
+  -command => \&DisplayBySectorName)
+    ->pack(-anchor => 'se', -side => 'bottom');
+
+$GenerateNewFileButton = $MenuFrame->Button(
+  -text => "Generate new targetless file",
+  -command => \&GenerateNewTargetlessFile)
+    ->pack(-anchor => 'nw', -side => 'right');
+
+
+#For debugging... uncomment to see this button.
+#$LoadRawDataButton = $MenuFrame->Button(-text => 'LRD', -command => \&LoadTargetlessDataRaw)->pack(-anchor => 'nw', -side => 'left');
 
 
 #=============================================================================
@@ -171,9 +187,22 @@ MainLoop();
 
 #Subroutines!
 
+#Could stand to think of a better name for this...
+sub m_print
+{
+  $RoidInfoDisplay->Contents("@_");
+  $RoidInfoDisplay->idletasks();
+}
+
 #Display all data for all rocks, in whatever order they happen to be in.
 sub DisplayAllTargetlessData
 {
+  unless(@RoidList)
+  {
+    m_print("No data to display!");
+    return;
+  }
+
   #Build output data
   my $text = "";
 
@@ -184,13 +213,13 @@ sub DisplayAllTargetlessData
   foreach $Rock (@RoidList)
   {
     #put a blank line between different sectors
-    if ($Rock->{"SectorID"} ne $CurrSectorID)
+    if ($Rock->{"SectorID"} != $CurrSectorID)
     {
       $CurrSectorID = $Rock->{"SectorID"};
       $text .= "\n";
     }
     
-    $text .= $Rock->{"SectorID"} . " (" . $Rock->{"RockID"} . "):";
+    $text .= $Rock->{"SectorName"} . " (" . $Rock->{"RockID"} . "):";
     
     foreach $OreType (@OreTypes)
     {
@@ -208,12 +237,18 @@ sub DisplayAllTargetlessData
   #Get rid of a newline added at the begining.
   $text =~ s/^\n//;
 
-  $RoidInfoDisplay->Contents($text);
+  m_print $text;
 }
 
 #Display only data on the selected ore
 sub DisplayDataForSelectedOre
 {
+  unless(@RoidList)
+  {
+    m_print("No data to display!");
+    return;
+  }
+
   my $text = "";
   my $OreType = $OreTypes[$OreListbox->index('active')];
   my $Rock;
@@ -224,35 +259,41 @@ sub DisplayDataForSelectedOre
   {
     if ($Rock->{"$OreType"} > 0)
     {
-      $text .= $Rock->{"SectorID"} . " (" . $Rock->{"RockID"} . "): " . $Rock->{"$OreType"} . "%\n";
+      $text .= $Rock->{"SectorName"} . " (" . $Rock->{"RockID"} . "): " . $Rock->{"$OreType"} . "%\n";
     }
   }
 
-  $RoidInfoDisplay->Contents($text);
+  m_print $text;
 }
 
 
 #Sorting subroutines
-sub SortByOreType
+sub DisplayByOreType
 {
-  @RoidList or return;
+  unless(@RoidList)
+  {
+    m_print("No data to display!");
+    return;
+  }
 
-  $RoidInfoDisplay->Contents("Working, please wait...");
-  $RoidInfoDisplay->idletasks();
-
+  m_print "Working, please wait...";
+  
   @RoidList = sort BySelectedOre @RoidList;
 
   DisplayDataForSelectedOre();
 }
 
-sub SortBySectorID
+sub DisplayBySectorName
 {
-  @RoidList or return;
+  unless(@RoidList)
+  {
+    m_print("No data to display!");
+    return;
+  }
 
-  $RoidInfoDisplay->Contents("Working, please wait...");
-  $RoidInfoDisplay->idletasks();
+  m_print "Working, please wait...";
 
-  @RoidList = sort BySectorID @RoidList;
+  @RoidList = sort BySectorName @RoidList;
   
   DisplayAllTargetlessData();
 }
@@ -264,9 +305,9 @@ sub BySelectedOre
   $b->{"$OreType"} <=> $a->{"$OreType"};
 }
 
-sub BySectorID
+sub BySectorName
 {
-  $a->{"SectorID"} cmp $b->{"SectorID"};
+  $a->{"SectorName"} cmp $b->{"SectorName"};
 }
 
 
@@ -276,6 +317,7 @@ sub BySectorID
 #then displays all data for all rocks.
 sub LoadTargetlessData
 {
+  my $MergeFlag = $_[0];
   my $text = "";
   my $filename = $DataFileEntry->get();
 
@@ -284,36 +326,48 @@ sub LoadTargetlessData
 
   unless (open(TARGETLESSFILE, $filename))
   {
-    $RoidInfoDisplay->Contents("Couldn't find file: $filename");
+    m_print "Couldn't find file: $filename";
     return;
   }
   $text = <TARGETLESSFILE>; #targetless doesn't use any line breaks
   close TARGETLESSFILE;
   
   #insert line breaks.  I did this for my sanity and to make the data human readable.
-  $text =~ s/\}\}(,|;)(\S)/\}\}$1\n$2/g;
-  $text =~ s/\}\}"(,|;)(\S)/\}\}"$1\n\n$2/g;
+  $text =~ s/\}\}([,|;])(\S)/\}\}$1\n$2/g;
+  $text =~ s/\}\}"([,|;])(\S)/\}\}"$1\n\n$2/g;
   $text =~ s/="",(\S)/="",\n\n$1/g;
 
   #Make sure this is a targetless data file.
-  unless ($text =~ /^\[\d+\]="\S/)
+  unless ($text =~ /^\[\d+\]="/)
   {
-    $RoidInfoDisplay->Contents("$filename\ndoes not appear to contain targetless data!");
+    m_print "$filename\ndoes not appear to contain targetless data!";
     return;
   }
 
   #extract 'roid data
   my $RoidCount = 0;
+  my $NewRoidCount = 0;
   my %RockEntry;
 
+  my $Rock;
+  my $RepeatRock;
+
   my $SectorID;
+  my $SectorName;
   my @OreData;
+  my $OreType;
   my $OreData;
 
-  my $OreType;
-
-  #Clear any current data
-  @RoidList = [];
+  if ($MergeFlag)
+  {
+    #Count the data we already have
+    $RoidCount = scalar(@RoidList);
+  }
+  else
+  {
+    #Clear any current data if not merging
+    @RoidList = ();
+  }
 
   #As a sanity check, this won't really do anything unless the file contained data
   #in the format it expected.
@@ -321,54 +375,90 @@ sub LoadTargetlessData
   {
     #New Sector ID found!
     #Parse ID to readable system/sector name.
-    $SectorID = $SystemList[$1 / 256] . " " . $SectorAlphas[(($1 % 256) % 16) - 1] . "-" . int((($1 % 256) / 16) + 1);
+    $SectorID = $1;
+    $SectorName = $SystemList[$1 / 256] . " " . $SectorAlphas[(($1 % 256) % 16) - 1] . "-" . int((($1 % 256) / 16) + 1);
 
-    $RoidInfoDisplay->Contents("Massive amounts of asteroid data found!  This may take a moment...\n\nProcessing sector $SectorID...");
-    $RoidInfoDisplay->idletasks();
+    m_print "Massive amounts of asteroid data found!  This may take a moment...\n\nProcessing sector $SectorName...";
 
     #Remove line with sector ID
-    $text =~ s/\S*\n//;
+    $text =~ s/\S+\n//;
 
-    while($text =~ /^\S+id=(\d+),\S+,ore={(\S+)\}\}/)
+    while($text =~ /^\S+id=(\d+),note=\\"(\S*)\\",ore={(\S+)\}\}/)
     {
       #New rock data found!
       $RockEntry{"SectorID"} = $SectorID;
+      $RockEntry{"SectorName"} = $SectorName;
       $RockEntry{"RockID"} = $1;
-      $OreData = $2;
+      $RockEntry{"note"} = $2;
+      $RockEntry{"OreData"} = $3;
+
+      $RepeatRock = 0;
+
+      if ($MergeFlag)
+      {
+	foreach $Rock (@RoidList)
+	{
+	  if ($Rock->{"SectorID"} == $RockEntry{"SectorID"} && $Rock->{"RockID"} == $RockEntry{"RockID"})
+	  {
+	    $RepeatRock = 1;
+	    last;
+	  }
+	}
+      }
       
-      #initialize the ore data for this rock
-      foreach $OreType (@OreTypes)
+      if (!$RepeatRock)
       {
-	$RockEntry{"$OreType"} = 0;
-      }
+	#initialize the ore data for this rock
+	foreach $OreType (@OreTypes)
+	{
+	  $RockEntry{"$OreType"} = 0;
+	}
 
-      #parse the ore data for this rock
-      @OreData = split /,\s*/, $OreData;
-      foreach $OreData (@OreData)
-      {
-	$OreData =~ /(\S+)=\\"(\S+)\\"/;
-	$RockEntry{"$1"} = $2;
-      }
+	#parse the ore data for this rock
+	@OreData = split /,\s*/, $RockEntry{"OreData"};
+	foreach $OreData (@OreData)
+	{
+	  $OreData =~ /(\S+)=\\"(\S+)\\"/;
+	  $RockEntry{"$1"} = $2;
+	}
 
-      #Add the rock to our @RoidList
-      $RoidList[$RoidCount] = { %RockEntry };
-      $RoidCount++;
+	#Add the rock to our @RoidList
+	$RoidList[$RoidCount] = { %RockEntry };
+	$RoidCount++;
+	$NewRoidCount++;
+      }
 
       #Remove this rock's entry from the loaded data
-      $text =~ s/\S*\n//;
+      $text =~ s/\S+\n?//;
     }
     
     if ($text =~ /^"/)
     {
       #this Sector ID had no rocks associated with it.
       #Remove the empty line
-      $text =~ s/\S*\n//;
+      $text =~ s/\S+\n//;
     }
 
-    $text =~ s/\n//;
+    $text =~ s/^\n//;
   }
 
-  DisplayAllTargetlessData();
+  if ($RoidCount > 0)
+  {
+    #Data loading successful!
+    if ($MergeFlag)
+    {
+      m_print "Data successfully merged!\n\n$NewRoidCount new rocks added to dataset for a total of $RoidCount.";
+    }
+    else
+    {
+      m_print "Data successfully loaded!\n\n$NewRoidCount rocks found!";
+    }
+  }
+  else
+  {
+    #Data loading failed!
+    m_print "$filename\ndoes not appear to contain targetless data!";
+  }
 }
 
 #Loads the contents of the targetless data file without parsing it
@@ -386,10 +476,78 @@ sub LoadTargetlessDataRaw
   close TARGETLESSFILE;
 
   #insert line breaks for readability
-  $text =~ s/\}\}(,|;)(\S)/\}\}$1\n$2/g;
-  $text =~ s/\}\}"(,|;)(\S)/\}\}"$1\n\n$2/g;
+  $text =~ s/\}\}([,|;])(\S)/\}\}$1\n$2/g;
+  $text =~ s/\}\}"([,|;])(\S)/\}\}"$1\n\n$2/g;
   $text =~ s/="",(\S)/="",\n\n$1/g;
   $text =~ s/\[(\d+)\]="(\S)/\[$1\]="\n$2/g;
 
-  $RoidInfoDisplay->Contents($text);
+  m_print($text);
+}
+
+
+#New data file generation
+
+sub GenerateNewTargetlessFile
+{
+  unless (@RoidList)
+  {
+    m_print("No data to save!");
+    return;
+  }
+
+  my $text = "";
+  my $Rock;
+  my $CurrSectorID = 0;
+  my $filename = $DataFileEntry->get();
+
+  #Get rid of any file:// at the begining of the filename
+  $filename =~ s/^file:\/\///;
+  $filename .= ".new";
+
+  #check to make sure we can write to this file before doing tons of work.
+  unless (open(NEWTARGETLESSFILE, ">$filename"))
+  {
+    m_print("Error opening $filename for output!");
+    return;
+  }
+  close NEWTARGETLESSFILE;
+
+
+  @RoidList = sort BySectorName @RoidList;
+
+  foreach $Rock (@RoidList)
+  {
+    if ($Rock->{"SectorID"} != $CurrSectorID)
+    {
+      if ($CurrSectorID)
+      {
+	#Needs a " before the , for all but the first sector
+	chop($text);
+	$text .= "\",";
+      }
+      $text .= "[" . $Rock->{"SectorID"} . "]=\"";
+
+      $CurrSectorID = $Rock->{"SectorID"};
+    }
+    
+    m_print "Working, please wait...\n\nProcessing sector " . $Rock->{"SectorName"} . "...";
+
+    $text .= "[" . $Rock->{"RockID"} . "]={id=" . $Rock->{"RockID"} . ",";
+    $text .= "note=\\\"" . $Rock->{"note"} . "\\\",";
+    $text .= "ore={" . $Rock->{"OreData"} . "}},";
+  }
+
+  chop($text);
+  $text .= "\"";
+
+  #Spit out the new file
+  unless (open(NEWTARGETLESSFILE, ">$filename"))
+  {
+    m_print("Error opening $filename for output!");
+    return;
+  }
+  print NEWTARGETLESSFILE $text;
+  close NEWTARGETLESSFILE;
+
+  m_print "Data successfully saved to $filename\n\nDON'T FORGET TO BACKUP YOUR ORIGINAL TARGETLESS DATA!";
 }

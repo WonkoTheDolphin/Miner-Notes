@@ -1,22 +1,64 @@
 MinerNotes.pl
 
-A perl script to parse targetless ore data files.
+A perl script to parse, merge, and generate data files used by the 'targetless' Vendetta Online plugin.
+
 
 Author:  Wonko
-Version:  Pre-Alpha
+Version:  Still Pre-Alpha
 
 
 Usage:
 
-Select a file to load, and click the 'Load data from targetless file' button, then be patient for ~20 seconds.
+Select a file to load, and click the 'Load this file' button, then be patient.
+This process shouldn't take more than ~30 seconds.
 
+If you wish to merge that data with a second file, enter the second file's name, then click 'Merge this file with current data'.
+This process can take a few minutes, something I'm working on speeding up.
+
+Once a new file is generated from your current data set, you'll still need to copy it over your old targetless file.
+Generating a new targetless file can also take a little while.
+
+Before you copy the new data file over, DON'T FORGET TO BACKUP YOUR OLD TARGETLESS FILE!
+I've talked to drazed, and the new files should be 100% safe to use, but backups never hurt, right?
+
+---------------------------------------------------------------------------------------------------
 
 Notes:
 
 The entry for selecting what file to load supports file links ("file://{some file}").
 You should be able to copy a file, and paste it to the entry!
 
+---------------------------------------------------------------------------------------------------
 
 Coming soon(tm):
 
-I'm working on being able to merge targetless data together.  Shouldn't take me too much longer!
+*Faster parsing and merging
+*More sorting options
+*Pre-compiled versions for people who don't get perl/Tk love by default.
+
+Maybe another idea or two I'm thinkg about...
+
+What features would YOU like to see added?
+
+---------------------------------------------------------------------------------------------------
+
+Special Thanks:
+
+drazed, for creating targetless and helping me understand the format targetless uses!
+
+
+---------------------------------------------------------------------------------------------------
+
+Changes from previous version:
+
+*Added ability to merge data sets
+*Added ability to generate new data files
+*Program is much more verbose about what what it's doing, and any potential errors that could occur.
+
+
+Hidden stuff:
+
+*Added button to display raw targetless data, left it commented out.
+*Added m_print function
+*Cleaned up regular expressions a bit.
+*Storing more data about each rock.
